@@ -4,7 +4,8 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics, IniFiles, FileCtrl,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.StdCtrls, Vcl.Buttons;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.StdCtrls, Vcl.Buttons,
+  Vcl.Grids, Vcl.Menus;
 
 type
   TFMain = class(TForm)
@@ -45,6 +46,12 @@ type
     SB_Open_AccountPrivateKey_Dir: TSpeedButton;
     L_Before: TLabel;
     L_After: TLabel;
+    TAB_SSL_Billing: TTabSheet;
+    SG_SSL_Billing: TStringGrid;
+    PM_SSL_Billing: TPopupMenu;
+    B_Add_Billing: TMenuItem;
+    B_Delete_Billing: TMenuItem;
+    B_Update_Billing: TMenuItem;
     procedure SB_Open_Challenge_DirClick(Sender: TObject);
     procedure B_Execute_GenerateLEClick(Sender: TObject);
     procedure SB_Open_CertClick(Sender: TObject);
@@ -55,12 +62,19 @@ type
     procedure SB_Open_AccountPrivateKey_DirClick(Sender: TObject);
     procedure B_Execute_ConvertClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure B_Add_BillingClick(Sender: TObject);
+    procedure B_Delete_BillingClick(Sender: TObject);
+    procedure B_Update_BillingClick(Sender: TObject);
   private
       Procedure ReadParams;
       Procedure WriteParams;
       function SelectFile(const Title, Filter :String):String;
+      procedure SET_SG_SSL_Billing();
+      procedure ClearStringGrid(const Grid: TStringGrid);
+      procedure DeleteRow(Grid: TStringGrid; ARow: Integer);
     { Private declarations }
   public
+    procedure Update_Billing();
     { Public declarations }
   end;
 
@@ -71,8 +85,51 @@ implementation
 
 {$R *.dfm}
 
-uses U_ACMECERT;
+uses U_ACMECERT, U_Add_Billing;
 
+procedure TFMain.B_Add_BillingClick(Sender: TObject);
+begin
+F_Add_Billing.ShowModal;
+end;
+
+procedure TFMain.B_Delete_BillingClick(Sender: TObject);
+var
+ S, Host, Port :String;
+ Billing_Type :Boolean;
+ ErrorBuf :PChar;
+begin
+ErrorBuf:=Nil;
+S:=SG_SSL_Billing.Cells[0, SG_SSL_Billing.Row];
+Host:= Copy(S,  1, LastDelimiter(':', S) - 1 );
+Port:= Copy(S, LastDelimiter(':', S) + 1, Length(S) );
+
+if (Host.Length = 0) Or (Port.Length = 0) then
+ Exit;
+
+
+if SG_SSL_Billing.Cells[4, SG_SSL_Billing.Row] = '0' then
+ Billing_Type:=False
+Else
+ Billing_Type:=True;
+
+
+if not DELETE_SSL_BINDING(StringToPAnsiChar(Host), StrToInt(Port), Billing_Type, ErrorBuf) then begin
+  Messagedlg(StrPas(ErrorBuf), mterror, [mbNo], 0);
+  Exit;
+end
+ Else begin
+    if SG_SSL_Billing.ColCount = 1 then Exit;
+    DeleteRow(SG_SSL_Billing, SG_SSL_Billing.Row);
+
+    if SG_SSL_Billing.RowCount = 1 then begin
+       SG_SSL_Billing.RowCount:=2;
+       SET_SG_SSL_Billing();
+    end;
+
+    SG_SSL_Billing.Refresh;
+end;
+
+end;
 
 procedure TFMain.B_Execute_ConvertClick(Sender: TObject);
 var
@@ -203,6 +260,11 @@ end;
 
 
 
+procedure TFMain.B_Update_BillingClick(Sender: TObject);
+begin
+Update_Billing();
+end;
+
 procedure TFMain.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
 WriteParams;
@@ -212,6 +274,7 @@ procedure TFMain.FormCreate(Sender: TObject);
 begin
 PC_Main.ActivePageIndex:=0;
 ReadParams;
+SET_SG_SSL_Billing();
 end;
 
 procedure TFMain.SB_Open_CAClick(Sender: TObject);
@@ -306,6 +369,129 @@ Try
 
 except on E:Exception do
  Messagedlg(e.Message, mterror, [mbNo],0);
+End;
+
+end;
+
+procedure TFMain.SET_SG_SSL_Billing();
+ var
+   W :Integer;
+begin
+ClearStringGrid(SG_SSL_Billing);
+SG_SSL_Billing.ColCount:=4;
+SG_SSL_Billing.FixedRows:=1;
+SG_SSL_Billing.RowCount:=2;
+
+W:=(SG_SSL_Billing.Width - 20) div 4;
+
+SG_SSL_Billing.ColWidths[0]:=W;
+SG_SSL_Billing.ColWidths[1]:=W;
+SG_SSL_Billing.ColWidths[2]:=W;
+SG_SSL_Billing.ColWidths[3]:=W;
+
+SG_SSL_Billing.Cells[0,0]:='HOSTNAME/IP';
+SG_SSL_Billing.Cells[1,0]:='ThumbPrint';
+SG_SSL_Billing.Cells[2,0]:='APPLICATION ID';
+SG_SSL_Billing.Cells[3,0]:='STORE NAME';
+SG_SSL_Billing.Cells[4,0]:='Billing Type';
+end;
+
+procedure TFMain.ClearStringGrid(const Grid: TStringGrid);
+var
+  c, r: Integer;
+begin
+  for c := 0 to Pred(Grid.ColCount) do
+    for r := 0 to Pred(Grid.RowCount) do
+      Grid.Cells[c, r] := '';
+end;
+
+procedure TFMain.DeleteRow(Grid: TStringGrid; ARow: Integer);
+var
+  I: Integer;
+begin
+  for I := ARow to Grid.RowCount - 2 do
+    Grid.Rows[I].Assign(Grid.Rows[I + 1]);
+  Grid.RowCount := Grid.RowCount - 1;
+end;
+
+procedure TFMain.Update_Billing();
+var
+SSL_CERTINFO_ARRAY: PTSSL_CERTINFO_ARRAY;
+I, Count, Row :Word;
+ErrorBuf :PChar;
+begin
+SET_SG_SSL_Billing();
+ErrorBuf:=Nil;
+Row:=1;
+Try
+
+    Try
+      SSL_CERTINFO_ARRAY:=Nil;
+
+      if not GET_SSL_CERTINFO_IP(SSL_CERTINFO_ARRAY, Count, ErrorBuf) then begin
+        Messagedlg(StrPas(ErrorBuf), mterror, [mbNo], 0);
+        Exit;
+      end
+      Else
+         begin
+           if Count > 0 then begin
+
+             SG_SSL_Billing.RowCount:=Count+Row;
+
+             for I:=0 to Count-1 do begin
+
+               SG_SSL_Billing.Cells[0,Row]:=PAnsiChar(SSL_CERTINFO_ARRAY^[I].HOST);
+               SG_SSL_Billing.Cells[1,Row]:=PAnsiChar(SSL_CERTINFO_ARRAY^[I].THUMBPRINT);
+               SG_SSL_Billing.Cells[2,Row]:=PAnsiChar(SSL_CERTINFO_ARRAY^[I].APP_ID);
+               SG_SSL_Billing.Cells[3,Row]:=PAnsiChar(SSL_CERTINFO_ARRAY^[I].STORE_NAME);
+               SG_SSL_Billing.Cells[4,Row]:='0';
+
+               inc(Row);
+             end;
+
+           end;
+
+         end;
+
+    Finally
+      if SSL_CERTINFO_ARRAY <> Nil then FREE_SSL_CERTINFO_ARRAY(Count, SSL_CERTINFO_ARRAY);
+    End;
+
+
+    Try
+      SSL_CERTINFO_ARRAY:=Nil;
+
+      if not GET_SSL_CERTINFO_HOST(SSL_CERTINFO_ARRAY, Count, ErrorBuf) then begin
+        Messagedlg(StrPas(ErrorBuf), mterror, [mbNo], 0);
+        Exit;
+      end
+      Else
+         begin
+           if Count > 0 then begin
+
+             SG_SSL_Billing.RowCount:=Count+Row;
+
+             for I:=0 to Count-1 do begin
+
+               SG_SSL_Billing.Cells[0,Row]:=PAnsiChar(SSL_CERTINFO_ARRAY^[I].HOST);
+               SG_SSL_Billing.Cells[1,Row]:=PAnsiChar(SSL_CERTINFO_ARRAY^[I].THUMBPRINT);
+               SG_SSL_Billing.Cells[2,Row]:=PAnsiChar(SSL_CERTINFO_ARRAY^[I].APP_ID);
+               SG_SSL_Billing.Cells[3,Row]:=PAnsiChar(SSL_CERTINFO_ARRAY^[I].STORE_NAME);
+               SG_SSL_Billing.Cells[4,Row]:='1';
+
+               inc(Row);
+             end;
+
+           end;
+
+         end;
+
+    Finally
+      if SSL_CERTINFO_ARRAY <> Nil then FREE_SSL_CERTINFO_ARRAY(Count, SSL_CERTINFO_ARRAY);
+    End;
+
+Except on e:exception do
+ Messagedlg(e.Message, mterror, [mbNo], 0);
 End;
 
 end;

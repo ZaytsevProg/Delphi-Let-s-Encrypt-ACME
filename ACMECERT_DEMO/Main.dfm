@@ -24,7 +24,7 @@ object FMain: TFMain
     Width = 540
     Height = 566
     Cursor = crHandPoint
-    ActivePage = TAB_GenerateLE
+    ActivePage = TAB_SSL_Billing
     Align = alClient
     ParentShowHint = False
     ShowHint = False
@@ -176,6 +176,33 @@ object FMain: TFMain
         TabOrder = 7
       end
     end
+    object TAB_SSL_Billing: TTabSheet
+      Caption = 'SSL Billing'
+      ImageIndex = 2
+      object SG_SSL_Billing: TStringGrid
+        Left = 0
+        Top = 0
+        Width = 532
+        Height = 535
+        Cursor = crHandPoint
+        Align = alClient
+        ColCount = 4
+        DefaultColAlignment = taCenter
+        DrawingStyle = gdsClassic
+        FixedCols = 0
+        RowCount = 2
+        FixedRows = 0
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goColSizing, goTabs, goFixedRowDefAlign]
+        ParentFont = False
+        PopupMenu = PM_SSL_Billing
+        TabOrder = 0
+      end
+    end
     object TAB_ConvertCert: TTabSheet
       Caption = 'Convert Pem To P12 '
       ImageIndex = 1
@@ -310,6 +337,22 @@ object FMain: TFMain
         TabOrder = 6
         OnClick = B_Execute_ConvertClick
       end
+    end
+  end
+  object PM_SSL_Billing: TPopupMenu
+    Left = 488
+    Top = 504
+    object B_Update_Billing: TMenuItem
+      Caption = 'Update Billing'
+      OnClick = B_Update_BillingClick
+    end
+    object B_Add_Billing: TMenuItem
+      Caption = 'Add Billing'
+      OnClick = B_Add_BillingClick
+    end
+    object B_Delete_Billing: TMenuItem
+      Caption = 'Delete Billing'
+      OnClick = B_Delete_BillingClick
     end
   end
 end

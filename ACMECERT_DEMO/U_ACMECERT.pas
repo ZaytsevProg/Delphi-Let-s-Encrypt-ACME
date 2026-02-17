@@ -5,6 +5,9 @@ interface
 uses
  Winapi.Windows, System.SysUtils, FileCtrl;
 
+ const
+   DEFAULT_ARRAY = $FF;
+
   type
     TBuffer = record
        Size   :NativeInt;
@@ -53,6 +56,26 @@ uses
     end;
       PPEM_To_PKCS12 = ^TPEM_To_PKCS12;
 
+    TSET_SSL_BINDING = packed record
+      HOST       :PAnsiChar;
+      THUMBPRINT :PAnsiChar;
+      APP_ID     :PAnsiChar;
+      PORT       :Cardinal;
+      HOST_OR_IP :Boolean;
+      SSL_UPDATE :Boolean;
+    end;
+    PSET_SSL_BINDING = ^TSET_SSL_BINDING;
+
+    TSSL_CERTINFO = packed record
+      HOST       :PAnsiChar;
+      THUMBPRINT :PAnsiChar;
+      APP_ID     :PAnsiChar;
+      STORE_NAME :PAnsiChar;
+    end;
+
+  PTSSL_CERTINFO_ARRAY = ^TSSL_CERTINFO_Array;
+  TSSL_CERTINFO_Array = array[0..DEFAULT_ARRAY] of TSSL_CERTINFO;
+
 
   function EXECUTE_CREATE_ACMECERT(CREATE_ACMECERT :PCREATE_ACMECERT; ACCOUNT :PACCOUNT;
   ACMECERT :PACMECERT; out ErrorBuf: PChar):Boolean; stdcall; external 'ACMECERT.DLL';
@@ -63,6 +86,12 @@ uses
   procedure TBuffer_Free(Buffer :TBuffer); stdcall external 'ACMECERT.DLL';
   procedure Pointer_Free(Var P :Pointer; LEN :NativeInt); stdcall external 'ACMECERT.DLL';
 
+
+  function SET_SSL_BINDING(const SSL_BINDING :PSET_SSL_BINDING; out ErrorBuf :PChar):Boolean; stdcall; external 'ACMECERT.DLL';
+  function DELETE_SSL_BINDING(const Host :PAnsiChar; const Port :Cardinal; const HOST_OR_IP :Boolean; out ErrorBuf :PChar):Boolean; stdcall; external 'ACMECERT.DLL';
+  function GET_SSL_CERTINFO_IP(out SSL_CERTINFO_ARRAY :PTSSL_CERTINFO_ARRAY; out Count :Word; out ErrorBuf :PChar):Boolean; stdcall; external 'ACMECERT.DLL';
+  function GET_SSL_CERTINFO_HOST(out SSL_CERTINFO_ARRAY :PTSSL_CERTINFO_ARRAY; out Count :Word; out ErrorBuf :PChar):Boolean; stdcall; external 'ACMECERT.DLL';
+  procedure FREE_SSL_CERTINFO_ARRAY(const Count: Integer; var SSL_CERTINFO_ARRAY: PTSSL_CERTINFO_ARRAY); stdcall; external 'ACMECERT.DLL';
 
   procedure LoadFile(const FileName :String; Var Buffer :TBuffer);
   procedure SaveFile(const FileName :String; const Buf :Pointer; const Size :NativeInt);
